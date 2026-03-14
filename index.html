@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MailBlast — Campaign Sender</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0e10;
+      --surface: #18181b;
+      --surface2: #222226;
+      --border: #2e2e35;
+      --accent: #e8ff4a;
+      --accent-dim: rgba(232,255,74,0.12);
+      --text: #f0f0f0;
+      --muted: #71717a;
+      --danger: #ff5f5f;
+      --success: #4aff8c;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ── */
+    .shell {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 40px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .logo-text {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.5px;
+    }
+    .logo-text span { color: var(--accent); }
+
+    /* Steps nav */
+    .steps { display: flex; flex-direction: column; gap: 4px; }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .step-item.active {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+    .step-item.done { color: var(--text); }
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1.5px solid currentColor;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .step-item.done .step-num {
+      background: var(--success);
+      border-color: var(--success);
+      color: #000;
+    }
+    .step-item.active .step-num { border-color: var(--accent); color: var(--accent); }
+
+    /* Stats box */
+    .stat-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .stat-box-label {
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    .stat-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+    .stat-row:last-child { margin-bottom: 0; }
+    .stat-key { font-size: 13px; color: var(--muted); }
+    .stat-val { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; }
+    .stat-val.green { color: var(--success); }
+    .stat-val.red { color: var(--danger); }
+
+    /* ── Main ── */
+    .main {
+      padding: 48px 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* Panel */
+    .panel {
+      display: none;
+      flex-direction: column;
+      gap: 32px;
+      animation: fadeUp 0.3s ease;
+    }
+    .panel.active { display: flex; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .panel-header { margin-bottom: 8px; }
+    .panel-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+    .panel-sub { font-size: 14px; color: var(--muted); margin-top: 6px; }
+
+    /* Form elements */
+    .field { display: flex; flex-direction: column; gap: 8px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+    }
+
+    input, textarea, select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      width: 100%;
+    }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+    select option { background: var(--surface2); }
+    textarea { resize: vertical; min-height: 120px; }
+
+    .token-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .token-row input { flex: 1; }
+
+    .validate-btn {
+      padding: 12px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .validate-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .token-status {
+      font-size: 12px;
+      margin-top: 4px;
+      height: 16px;
+    }
+    .token-status.ok { color: var(--success); }
+    .token-status.err { color: var(--danger); }
+
+    /* Email list */
+    .email-area-wrap { position: relative; }
+    .email-area-wrap textarea { font-family: 'DM Mono', monospace; font-size: 13px; min-height: 200px; }
+    .email-counter {
+      position: absolute;
+      bottom: 12px;
+      right: 14px;
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    /* Image preview */
+    .img-preview {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      display: none;
+      margin-top: 8px;
+    }
+    .img-preview.show { display: block; }
+
+    /* CTA row */
+    .cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 12px; margin-top: 8px; }
+
+    .btn {
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+    }
+    .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { border-color: var(--text); color: var(--text); }
+
+    /* Secondary button (for test email) */
+    .btn-secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid rgba(232,255,74,0.35);
+    }
+    .btn-secondary:hover { background: var(--accent-dim); border-color: var(--accent); }
+    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Preview card */
+    .preview-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .preview-card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .preview-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .preview-body { padding: 24px; }
+    .preview-img {
+      width: 100%;
+      border-radius: 8px;
+      max-height: 180px;
+      object-fit: cover;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .preview-img.show { display: block; }
+    .preview-headline { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+    .preview-text { font-size: 14px; color: var(--muted); line-height: 1.7; white-space: pre-line; }
+    .preview-cta {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 24px;
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+      font-size: 13px;
+      border-radius: 6px;
+    }
+
+    /* Results */
+    .result-banner {
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .result-banner.success { background: rgba(74,255,140,0.08); border: 1px solid rgba(74,255,140,0.25); }
+    .result-banner.partial { background: rgba(255,180,60,0.08); border: 1px solid rgba(255,180,60,0.25); }
+    .result-banner.error { background: rgba(255,95,95,0.08); border: 1px solid rgba(255,95,95,0.25); }
+    .result-icon { font-size: 36px; }
+    .result-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
+    .result-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+    .failure-list {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .failure-list-header {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .failure-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .failure-item:last-child { border-bottom: none; }
+    .failure-email { color: var(--text); font-family: monospace; }
+    .failure-msg { color: var(--danger); font-size: 12px; }
+
+    /* Spinner */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-top-color: #000;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Spinner light (for dark bg buttons) */
+    .spinner-light {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(232,255,74,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+
+    /* Info box */
+    .info-box {
+      background: var(--accent-dim);
+      border: 1px solid rgba(232,255,74,0.2);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: var(--accent);
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    /* Personalization hint */
+    .personalization-hint {
+      background: rgba(232,255,74,0.06);
+      border: 1px dashed rgba(232,255,74,0.25);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .personalization-hint code {
+      background: rgba(232,255,74,0.12);
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+    }
+
+    /* CSV upload area */
+    .csv-upload-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .csv-upload-btn {
+      padding: 10px 20px;
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'DM Sans', sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .csv-upload-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      border-style: solid;
+      background: var(--accent-dim);
+    }
+    .csv-status {
+      font-size: 13px;
+      color: var(--success);
+      min-height: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .csv-status.error { color: var(--danger); }
+
+    /* Test email inline area */
+    .test-email-area {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: none;
+      animation: fadeUp 0.25s ease;
+    }
+    .test-email-area.show { display: block; }
+    .test-email-area .field { margin-bottom: 14px; }
+    .test-email-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .test-email-row input { flex: 1; }
+    .test-email-status {
+      font-size: 13px;
+      margin-top: 10px;
+      min-height: 20px;
+    }
+    .test-email-status.ok { color: var(--success); }
+    .test-email-status.err { color: var(--danger); }
+
+    /* Progress bar */
+    .progress-wrap {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: none;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-label { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+    .progress-bar-bg {
+      background: var(--border);
+      border-radius: 99px;
+      height: 6px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .main { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></div>
+      <div class="logo-text">Mail<span>Blast</span></div>
+    </div>
+
+    <nav class="steps">
+      <div class="step-item active" data-step="1" onclick="goToStep(1)">
+        <div class="step-num">1</div>
+        <div>Configuration</div>
+      </div>
+      <div class="step-item" data-step="2" onclick="goToStep(2)">
+        <div class="step-num">2</div>
+        <div>Recipients</div>
+      </div>
+      <div class="step-item" data-step="3" onclick="goToStep(3)">
+        <div class="step-num">3</div>
+        <div>Campaign Content</div>
+      </div>
+      <div class="step-item" data-step="4" onclick="goToStep(4)">
+        <div class="step-num">4</div>
+        <div>Review & Send</div>
+      </div>
+    </nav>
+
+    <div class="stat-box" id="live-stats">
+      <div class="stat-box-label">Campaign Stats</div>
+      <div class="stat-row">
+        <span class="stat-key">Recipients</span>
+        <span class="stat-val" id="stat-recipients">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Sent</span>
+        <span class="stat-val green" id="stat-sent">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Failed</span>
+        <span class="stat-val red" id="stat-failed">—</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- STEP 1: Config -->
+    <div class="panel active" id="panel-1">
+      <div class="panel-header">
+        <div class="panel-title">Set up your sender</div>
+        <div class="panel-sub">Connect your Postmark account and configure who the emails come from.</div>
+      </div>
+
+      <div class="field">
+        <label>Postmark Server API Token</label>
+        <div class="token-row">
+          <input type="password" id="api-token" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+          <button class="validate-btn" onclick="validateToken()">Validate</button>
+        </div>
+        <div class="token-status" id="token-status"></div>
+      </div>
+
+      <div class="field">
+        <label>Message Stream</label>
+        <select id="message-stream">
+          <option value="broadcast">broadcast (marketing / newsletters)</option>
+          <option value="outbound">outbound (transactional)</option>
+        </select>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>From Name</label>
+          <input type="text" id="from-name" placeholder="Acme Corp" />
+        </div>
+        <div class="field">
+          <label>From Email</label>
+          <input type="email" id="from-email" placeholder="hello@yourcompany.com" />
+        </div>
+      </div>
+
+      <div class="info-box">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        <div>Your <strong>From Email</strong> must have a verified Sender Signature in Postmark. Use the <strong>broadcast</strong> stream for marketing emails.</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="nextStep(1)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: Recipients -->
+    <div class="panel" id="panel-2">
+      <div class="panel-header">
+        <div class="panel-title">Add recipients</div>
+        <div class="panel-sub">Paste email addresses — one per line, or comma/semicolon separated. Or upload a CSV file.</div>
+      </div>
+
+      <div class="field">
+        <label>Email Addresses</label>
+        <!-- CSV Upload Row -->
+        <div class="csv-upload-row">
+          <button class="csv-upload-btn" onclick="document.getElementById('csv-file-input').click()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+            Upload CSV
+          </button>
+          <input type="file" id="csv-file-input" accept=".csv,.txt" style="display:none" onchange="handleCsvUpload(event)" />
+          <div class="csv-status" id="csv-status"></div>
+        </div>
+        <div class="email-area-wrap">
+          <textarea id="email-list" placeholder="user@example.com&#10;another@example.com&#10;third@example.com" oninput="updateEmailCount()"></textarea>
+          <div class="email-counter" id="email-counter">0 emails</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goToStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="nextStep(2)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Content -->
+    <div class="panel" id="panel-3">
+      <div class="panel-header">
+        <div class="panel-title">Craft your campaign</div>
+        <div class="panel-sub">Add your image, message, and call-to-action. Preview updates live.</div>
+      </div>
+
+      <div class="field">
+        <label>Email Subject Line</label>
+        <input type="text" id="subject" placeholder="We have something exciting to share..." />
+      </div>
+
+      <div class="field">
+        <label>Banner Image URL <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+        <input type="url" id="image-url" placeholder="https://yoursite.com/banner.jpg" oninput="updatePreview()" />
+        <img id="img-preview" class="img-preview" />
+      </div>
+
+      <div class="field">
+        <label>Headline</label>
+        <input type="text" id="headline" placeholder="Big news from us!" oninput="updatePreview()" />
+      </div>
+
+      <div class="field">
+        <label>Body Message</label>
+        <textarea id="body-text" placeholder="Write your marketing message here..." oninput="updatePreview()"></textarea>
+      </div>
+
+      <!-- Personalization hint -->
+      <div class="personalization-hint">
+        <div style="display:flex; gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <div>Use <code>{{first_name}}</code> anywhere in your subject, headline, or body to personalize per recipient.<br/>Falls back to the full email address if no name is available.</div>
+        </div>
+      </div>
+
+      <div class="cta-row">
+        <div class="field">
+          <label>CTA Button Text <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+          <input type="text" id="cta-text" placeholder="Shop Now" oninput="updatePreview()" />
+        </div>
+        <div class="field">
+          <label>CTA Button URL</label>
+          <input type="url" id="cta-url" placeholder="https://yoursite.com" oninput="updatePreview()" />
+        </div>
+      </div>
+
+      <!-- Live preview -->
+      <div class="preview-card">
+        <div class="preview-card-header">
+          <div class="preview-dot"></div>
+          Live Email Preview
+        </div>
+        <div class="preview-body">
+          <img id="preview-img" class="preview-img" />
+          <div class="preview-headline" id="preview-headline">Your headline will appear here</div>
+          <div class="preview-text" id="preview-text" style="color:var(--muted);">Your body text will appear here...</div>
+          <div id="preview-cta-wrap"></div>
+        </div>
+      </div>
+
+      <!-- Send Test Email (Step 3) -->
+      <div class="test-email-area" id="test-email-area-3">
+        <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text);display:flex;align-items:center;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          Send Test Email
+        </div>
+        <div class="field">
+          <label>Send test to which email?</label>
+          <div class="test-email-row">
+            <input type="email" id="test-email-to-3" placeholder="your@email.com" />
+            <button class="btn btn-primary" onclick="sendTestEmail('3')" id="test-send-btn-3" style="white-space:nowrap;">
+              <span id="test-send-text-3">Send Test</span>
+            </button>
+          </div>
+        </div>
+        <div class="test-email-status" id="test-email-status-3"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goToStep(2)">← Back</button>
+        <button class="btn btn-secondary" onclick="toggleTestEmail('3')" style="display:flex;align-items:center;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          Send Test Email
+        </button>
+        <button class="btn btn-primary" onclick="nextStep(3)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: Review & Send -->
+    <div class="panel" id="panel-4">
+      <div class="panel-header">
+        <div class="panel-title">Review & Send</div>
+        <div class="panel-sub">Double-check everything before launching your campaign.</div>
+      </div>
+
+      <div class="preview-card" id="review-summary">
+        <div class="preview-card-header">
+          <div class="preview-dot"></div>
+          Campaign Summary
+        </div>
+        <div class="preview-body" id="review-body" style="display:flex;flex-direction:column;gap:12px;"></div>
+      </div>
+
+      <!-- Send Test Email (Step 4) -->
+      <div class="test-email-area" id="test-email-area-4">
+        <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text);display:flex;align-items:center;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          Send Test Email
+        </div>
+        <div class="field">
+          <label>Send test to which email?</label>
+          <div class="test-email-row">
+            <input type="email" id="test-email-to-4" placeholder="your@email.com" />
+            <button class="btn btn-primary" onclick="sendTestEmail('4')" id="test-send-btn-4" style="white-space:nowrap;">
+              <span id="test-send-text-4">Send Test</span>
+            </button>
+          </div>
+        </div>
+        <div class="test-email-status" id="test-email-status-4"></div>
+      </div>
+
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-label" id="progress-label">Sending...</div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-bar"></div>
+        </div>
+      </div>
+
+      <div id="result-area"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goToStep(3)" id="back-btn">← Back</button>
+        <button class="btn btn-secondary" onclick="toggleTestEmail('4')" style="display:flex;align-items:center;gap:8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          Send Test Email
+        </button>
+        <button class="btn btn-primary" onclick="sendCampaign()" id="send-btn">
+          <span id="send-btn-text" style="display:flex;align-items:center;gap:8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Send Campaign
+          </span>
+        </button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  let currentStep = 1;
+  let completed = new Set();
+
+  // ── Recipient data store (for CSV with firstName) ──
+  // Array of { email, firstName } — populated by CSV upload or manually
+  let recipientData = [];
+
+  // ── Navigation ──
+  function goToStep(n) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`panel-${n}`).classList.add('active');
+
+    document.querySelectorAll('.step-item').forEach(item => {
+      const s = parseInt(item.dataset.step);
+      item.classList.remove('active', 'done');
+      if (s === n) item.classList.add('active');
+      else if (completed.has(s)) item.classList.add('done');
+    });
+
+    currentStep = n;
+  }
+
+  function nextStep(from) {
+    if (!validateStep(from)) return;
+    completed.add(from);
+    if (from === 3) buildReview();
+    goToStep(from + 1);
+  }
+
+  // ── Validation ──
+  function validateStep(step) {
+    if (step === 1) {
+      const token = v('api-token');
+      const email = v('from-email');
+      if (!token) { alert('Please enter your Postmark API token.'); return false; }
+      if (!email) { alert('Please enter a From email address.'); return false; }
+    }
+    if (step === 2) {
+      const emails = parseEmails();
+      if (!emails.length) { alert('Please add at least one recipient email address.'); return false; }
+    }
+    if (step === 3) {
+      if (!v('subject')) { alert('Please enter an email subject.'); return false; }
+      if (!v('headline') && !v('body-text')) { alert('Please add a headline or body text.'); return false; }
+    }
+    return true;
+  }
+
+  // ── Helpers ──
+  function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
+
+  function parseEmails() {
+    const raw = document.getElementById('email-list')?.value || '';
+    return [...new Set(
+      raw.split(/[\n,;]+/)
+         .map(e => e.trim())
+         .filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+    )];
+  }
+
+  // Build recipients array: merge textarea emails with recipientData names
+  function getRecipients() {
+    const emails = parseEmails();
+    // Build a map of email -> firstName from recipientData
+    const nameMap = {};
+    recipientData.forEach(r => {
+      if (r.email && r.firstName) {
+        nameMap[r.email.toLowerCase()] = r.firstName;
+      }
+    });
+    return emails.map(email => ({
+      email,
+      firstName: nameMap[email.toLowerCase()] || ''
+    }));
+  }
+
+  function updateEmailCount() {
+    const emails = parseEmails();
+    document.getElementById('email-counter').textContent = `${emails.length} email${emails.length !== 1 ? 's' : ''}`;
+    document.getElementById('stat-recipients').textContent = emails.length || '—';
+  }
+
+  // ── CSV Upload & Parsing (Feature 1) ──
+  function handleCsvUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('csv-status');
+    statusEl.className = 'csv-status';
+    statusEl.textContent = 'Reading file...';
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const text = e.target.result;
+        const parsed = parseCsv(text);
+        if (parsed.length === 0) {
+          statusEl.className = 'csv-status error';
+          statusEl.textContent = 'No valid email addresses found in CSV';
+          return;
+        }
+
+        // Store in memory
+        recipientData = parsed;
+
+        // Populate textarea with just emails
+        const textarea = document.getElementById('email-list');
+        textarea.value = parsed.map(r => r.email).join('\n');
+        updateEmailCount();
+
+        statusEl.className = 'csv-status';
+        statusEl.textContent = `Successfully loaded ${parsed.length} contact${parsed.length !== 1 ? 's' : ''} from CSV`;
+      } catch (err) {
+        statusEl.className = 'csv-status error';
+        statusEl.textContent = `Error parsing CSV: ${err.message}`;
+      }
+    };
+    reader.onerror = function() {
+      statusEl.className = 'csv-status error';
+      statusEl.textContent = 'Could not read the file';
+    };
+    reader.readAsText(file);
+
+    // Reset the input so the same file can be re-uploaded
+    event.target.value = '';
+  }
+
+  function parseCsv(text) {
+    // Split into lines, handle \r\n and \n
+    const lines = text.split(/\r?\n/).filter(line => line.trim());
+    if (lines.length === 0) return [];
+
+    // Detect delimiter: comma or semicolon
+    const firstLine = lines[0];
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semicolonCount = (firstLine.match(/;/g) || []).length;
+    const delimiter = semicolonCount > commaCount ? ';' : ',';
+
+    // Parse header row
+    const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, ''));
+
+    // Auto-detect email column
+    const emailHeaders = ['email', 'e-mail', 'email_address', 'emailaddress'];
+    let emailIdx = headers.findIndex(h => emailHeaders.includes(h.toLowerCase()));
+    if (emailIdx === -1) emailIdx = 0; // fallback: first column
+
+    // Auto-detect firstName column
+    const nameHeaders = ['first_name', 'firstname', 'first name', 'name'];
+    let nameIdx = headers.findIndex(h => nameHeaders.includes(h.toLowerCase()));
+
+    // Parse data rows
+    const results = [];
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(delimiter).map(c => c.trim().replace(/^["']|["']$/g, ''));
+      const email = cols[emailIdx] ? cols[emailIdx].trim() : '';
+      const firstName = nameIdx >= 0 && cols[nameIdx] ? cols[nameIdx].trim() : '';
+
+      if (email && emailRegex.test(email)) {
+        results.push({ email, firstName });
+      }
+    }
+
+    return results;
+  }
+
+  // ── Token Validation ──
+  async function validateToken() {
+    const token = v('api-token');
+    if (!token) return;
+    const statusEl = document.getElementById('token-status');
+    statusEl.className = 'token-status';
+    statusEl.textContent = 'Checking...';
+
+    const res = await fetch('/api/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiToken: token })
+    }).then(r => r.json());
+
+    if (res.valid) {
+      statusEl.className = 'token-status ok';
+      statusEl.textContent = 'Token is valid';
+    } else {
+      statusEl.className = 'token-status err';
+      statusEl.textContent = `${res.message || 'Invalid token'}`;
+    }
+  }
+
+  // ── Live Preview (with {{first_name}} replacement) ──
+  function updatePreview() {
+    const imageUrl = v('image-url');
+    let headline = v('headline');
+    let bodyText = v('body-text');
+    const ctaText = v('cta-text');
+    const ctaUrl = v('cta-url');
+
+    // Replace {{first_name}} with sample "Alex" in preview
+    const previewHeadline = headline ? headline.replace(/\{\{first_name\}\}/g, 'Alex') : '';
+    const previewBody = bodyText ? bodyText.replace(/\{\{first_name\}\}/g, 'Alex') : '';
+
+    // Sidebar preview img
+    const sideImg = document.getElementById('img-preview');
+    if (imageUrl) {
+      sideImg.src = imageUrl;
+      sideImg.classList.add('show');
+    } else {
+      sideImg.classList.remove('show');
+    }
+
+    // Card preview
+    const pImg = document.getElementById('preview-img');
+    if (imageUrl) { pImg.src = imageUrl; pImg.classList.add('show'); }
+    else { pImg.classList.remove('show'); }
+
+    document.getElementById('preview-headline').textContent = previewHeadline || 'Your headline will appear here';
+    document.getElementById('preview-text').textContent = previewBody || 'Your body text will appear here...';
+    document.getElementById('preview-text').style.color = previewBody ? 'var(--text)' : 'var(--muted)';
+
+    const ctaWrap = document.getElementById('preview-cta-wrap');
+    ctaWrap.innerHTML = ctaText
+      ? `<a href="${ctaUrl || '#'}" class="preview-cta" target="_blank">${ctaText}</a>`
+      : '';
+  }
+
+  // ── Send Test Email (Feature 2) ──
+  function toggleTestEmail(step) {
+    const area = document.getElementById(`test-email-area-${step}`);
+    const isVisible = area.classList.contains('show');
+    area.classList.toggle('show');
+
+    if (!isVisible) {
+      // Pre-fill with From email
+      const toInput = document.getElementById(`test-email-to-${step}`);
+      if (!toInput.value) {
+        toInput.value = v('from-email');
+      }
+      toInput.focus();
+    }
+  }
+
+  async function sendTestEmail(step) {
+    const toInput = document.getElementById(`test-email-to-${step}`);
+    const btn = document.getElementById(`test-send-btn-${step}`);
+    const btnText = document.getElementById(`test-send-text-${step}`);
+    const statusEl = document.getElementById(`test-email-status-${step}`);
+
+    const testTo = toInput.value.trim();
+    if (!testTo) {
+      statusEl.className = 'test-email-status err';
+      statusEl.textContent = 'Please enter a valid email address';
+      return;
+    }
+
+    // Validate we have enough content
+    if (!v('subject')) {
+      statusEl.className = 'test-email-status err';
+      statusEl.textContent = 'Please fill in the email subject first';
+      return;
+    }
+
+    btn.disabled = true;
+    btnText.innerHTML = '<div class="spinner"></div>';
+    statusEl.className = 'test-email-status';
+    statusEl.textContent = 'Sending test email...';
+
+    try {
+      const payload = {
+        apiToken: v('api-token'),
+        fromName: v('from-name'),
+        fromEmail: v('from-email'),
+        subject: v('subject'),
+        messageStream: v('message-stream'),
+        testTo,
+        content: {
+          imageUrl: v('image-url'),
+          headline: v('headline'),
+          body: v('body-text'),
+          ctaText: v('cta-text'),
+          ctaUrl: v('cta-url'),
+        }
+      };
+
+      const res = await fetch('/api/send-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(r => r.json());
+
+      if (res.success) {
+        statusEl.className = 'test-email-status ok';
+        statusEl.textContent = `${res.message}`;
+      } else {
+        statusEl.className = 'test-email-status err';
+        statusEl.textContent = `${res.error || 'Failed to send test email'}`;
+      }
+    } catch (err) {
+      statusEl.className = 'test-email-status err';
+      statusEl.textContent = 'Network error — is the server running?';
+    }
+
+    btn.disabled = false;
+    btnText.textContent = 'Send Test';
+  }
+
+  // ── Build Review ──
+  function buildReview() {
+    const recipients = getRecipients();
+    const namesCount = recipients.filter(r => r.firstName).length;
+    const recipientInfo = `${recipients.length} email addresses` +
+      (namesCount > 0 ? ` (${namesCount} with first names)` : '');
+
+    const rows = [
+      ['From',       `${v('from-name')} <${v('from-email')}>`],
+      ['Stream',     v('message-stream')],
+      ['Subject',    v('subject')],
+      ['Recipients', recipientInfo],
+      ['Headline',   v('headline')],
+      ['CTA',        v('cta-text') ? `${v('cta-text')} → ${v('cta-url')}` : '(none)'],
+    ];
+
+    document.getElementById('review-body').innerHTML = rows.map(([k, val]) => `
+      <div style="display:flex;gap:24px;align-items:baseline;padding-bottom:12px;border-bottom:1px solid var(--border);font-size:14px;">
+        <div style="width:100px;flex-shrink:0;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">${k}</div>
+        <div style="color:var(--text);">${val}</div>
+      </div>
+    `).join('');
+
+    document.getElementById('stat-recipients').textContent = recipients.length;
+    document.getElementById('stat-sent').textContent = '—';
+    document.getElementById('stat-failed').textContent = '—';
+  }
+
+  // ── Send Campaign (Feature 3: sends [{email, firstName}]) ──
+  async function sendCampaign() {
+    const recipients = getRecipients();
+    const sendBtn = document.getElementById('send-btn');
+    const btnText = document.getElementById('send-btn-text');
+    const backBtn = document.getElementById('back-btn');
+    const progressWrap = document.getElementById('progress-wrap');
+    const progressBar = document.getElementById('progress-bar');
+    const progressLabel = document.getElementById('progress-label');
+    const resultArea = document.getElementById('result-area');
+
+    // Animate progress
+    sendBtn.disabled = true;
+    backBtn.disabled = true;
+    btnText.innerHTML = '<div class="spinner"></div> Sending...';
+    progressWrap.classList.add('show');
+    progressLabel.textContent = `Sending to ${recipients.length} recipients...`;
+    resultArea.innerHTML = '';
+
+    // Fake progress animation (real request is in background)
+    let prog = 0;
+    const fakeProgress = setInterval(() => {
+      prog = Math.min(prog + Math.random() * 8, 85);
+      progressBar.style.width = prog + '%';
+    }, 300);
+
+    try {
+      const payload = {
+        apiToken: v('api-token'),
+        fromName: v('from-name'),
+        fromEmail: v('from-email'),
+        subject: v('subject'),
+        messageStream: v('message-stream'),
+        emails: recipients,  // [{email, firstName}]
+        content: {
+          imageUrl: v('image-url'),
+          headline: v('headline'),
+          body: v('body-text'),
+          ctaText: v('cta-text'),
+          ctaUrl: v('cta-url'),
+        }
+      };
+
+      const res = await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(r => r.json());
+
+      clearInterval(fakeProgress);
+      progressBar.style.width = '100%';
+
+      setTimeout(() => {
+        progressWrap.classList.remove('show');
+
+        if (res.error) {
+          resultArea.innerHTML = `
+            <div class="result-banner error">
+              <div class="result-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+              </div>
+              <div>
+                <div class="result-title">Send Failed</div>
+                <div class="result-sub">${res.error}</div>
+              </div>
+            </div>`;
+        } else {
+          const isPartial = res.failed > 0;
+          const isAll = res.failed === 0;
+          document.getElementById('stat-sent').textContent = res.sent;
+          document.getElementById('stat-failed').textContent = res.failed;
+
+          resultArea.innerHTML = `
+            <div class="result-banner ${isAll ? 'success' : 'partial'}">
+              <div class="result-icon">${isAll ? '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86l-8.6 14.88c-.62 1.07.15 2.45 1.38 2.45h17.18c1.23 0 2-.15 1.4-2.45l-8.6-14.88c-.6-1.07-2.12-1.07-2.76 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'}</div>
+              <div>
+                <div class="result-title">${isAll ? 'Campaign Sent!' : 'Sent with some failures'}</div>
+                <div class="result-sub">${res.sent} sent successfully${res.failed ? `, ${res.failed} failed` : ''}.</div>
+              </div>
+            </div>
+            ${res.failures?.length ? `
+              <div class="failure-list" style="margin-top:16px;">
+                <div class="failure-list-header">Failed Addresses (first ${res.failures.length})</div>
+                ${res.failures.map(f => `
+                  <div class="failure-item">
+                    <span class="failure-email">${f.To || '—'}</span>
+                    <span class="failure-msg">${f.Message || 'Error'}</span>
+                  </div>`).join('')}
+              </div>` : ''}
+          `;
+        }
+
+        sendBtn.disabled = false;
+        backBtn.disabled = false;
+        btnText.innerHTML = '<span style="display:flex;align-items:center;gap:8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> Send Again</span>';
+      }, 600);
+
+    } catch (err) {
+      clearInterval(fakeProgress);
+      progressWrap.classList.remove('show');
+      resultArea.innerHTML = `
+        <div class="result-banner error">
+          <div class="result-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+          </div>
+          <div>
+            <div class="result-title">Network Error</div>
+            <div class="result-sub">Could not reach the server. Is it running?</div>
+          </div>
+        </div>`;
+      sendBtn.disabled = false;
+      backBtn.disabled = false;
+      btnText.innerHTML = '<span style="display:flex;align-items:center;gap:8px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> Send Campaign</span>';
+    }
+  }
+</script>
+</body>
+</html>
