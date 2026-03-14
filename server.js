@@ -4,7 +4,9 @@ const path = require("path");
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
-app.use(express.static(path.join(__dirname, ".")));
+if (require.main === module) {
+  app.use(express.static(path.join(__dirname, ".")));
+}
 
 // Build HTML email from campaign content
 function buildHtmlEmail(content) {
@@ -237,9 +239,8 @@ app.post("/api/validate", async (req, res) => {
 });
 
 // Export the Express app for serverless platforms (e.g., Vercel)
-if (process.env.VERCEL) {
-  module.exports = app;
-} else {
-  const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
+if (require.main === module) {
   app.listen(PORT, () => console.log(`MailBlast running on http://localhost:${PORT}`));
 }
+module.exports = app;
