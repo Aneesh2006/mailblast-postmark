@@ -236,5 +236,10 @@ app.post("/api/validate", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`MailBlast running on http://localhost:${PORT}`));
+// Export the Express app for serverless platforms (e.g., Vercel)
+if (process.env.VERCEL) {
+  module.exports = app;
+} else {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`MailBlast running on http://localhost:${PORT}`));
+}
