@@ -1,12 +1,57 @@
 const express = require("express");
 const axios = require("axios");
+const crypto = require("crypto");
 const path = require("path");
+require("dotenv").config();
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 if (require.main === module) {
   app.use(express.static(path.join(__dirname, ".")));
 }
+
+// ── Simple token-based auth ──
+const activeSessions = new Set();
+
+app.post("/api/login", (req, res) => {
+  const { password } = req.body;
+  if (!password || password !== process.env.LOGIN_PASSWORD) {
+    return res.status(401).json({ error: "Wrong password." });
+  }
+  const token = crypto.randomBytes(32).toString("hex");
+  activeSessions.add(token);
+  res.json({ token });
+});
+
+// Auth middleware — protect all /api/* routes except /api/login
+app.use("/api", (req, res, next) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token || !activeSessions.has(token)) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+});
+
+// Read API keys from environment variables (POSTMARK_KEY_<Label>=<token>)
+function getApiKeys() {
+  const keys = [];
+  for (const [envKey, envVal] of Object.entries(process.env)) {
+    if (envKey.startsWith("POSTMARK_KEY_") && envVal) {
+      const label = envKey.replace("POSTMARK_KEY_", "");
+      keys.push({ id: label, name: label, maskedToken: envVal.slice(0, 8) + "..." });
+    }
+  }
+  return keys;
+}
+
+function resolveApiToken(keyId) {
+  return process.env[`POSTMARK_KEY_${keyId}`] || null;
+}
+
+// GET /api/keys — return available API key names (no secrets)
+app.get("/api/keys", (req, res) => {
+  res.json(getApiKeys());
+});
 
 // Build HTML email from campaign content
 function buildHtmlEmail(content) {
@@ -72,8 +117,9 @@ function personalize(text, firstName, fallback) {
 
 // POST /api/send — main send endpoint
 app.post("/api/send", async (req, res) => {
-  const { apiToken, fromEmail, fromName, subject, emails, content, messageStream } = req.body;
+  const { apiKeyId, apiToken: rawToken, fromEmail, fromName, subject, emails, content, messageStream } = req.body;
 
+  const apiToken = (apiKeyId ? resolveApiToken(apiKeyId) : rawToken) || "";
   if (!apiToken || !fromEmail || !subject || !emails?.length || !content) {
     return res.status(400).json({ error: "Missing required fields." });
   }
@@ -162,8 +208,9 @@ app.post("/api/send", async (req, res) => {
 
 // POST /api/send-test — send a single test email
 app.post("/api/send-test", async (req, res) => {
-  const { apiToken, fromEmail, fromName, subject, testTo, content, messageStream } = req.body;
+  const { apiKeyId, apiToken: rawToken, fromEmail, fromName, subject, testTo, content, messageStream } = req.body;
 
+  const apiToken = (apiKeyId ? resolveApiToken(apiKeyId) : rawToken) || "";
   if (!apiToken || !fromEmail || !subject || !testTo || !content) {
     return res.status(400).json({ error: "Missing required fields for test email." });
   }
@@ -224,7 +271,8 @@ app.post("/api/send-test", async (req, res) => {
 
 // POST /api/validate — test API token
 app.post("/api/validate", async (req, res) => {
-  const { apiToken } = req.body;
+  const { apiKeyId, apiToken: rawToken } = req.body;
+  const apiToken = (apiKeyId ? resolveApiToken(apiKeyId) : rawToken) || "";
   try {
     await axios.get("https://api.postmarkapp.com/server", {
       headers: {

@@ -533,7 +533,23 @@
 </head>
 <body>
 
-<div class="shell">
+<!-- Login Screen -->
+<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:48px 40px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:24px;align-items:center;">
+    <div class="logo">
+      <div class="logo-mark"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></div>
+      <div class="logo-text">Mail<span>Blast</span></div>
+    </div>
+    <p style="font-size:14px;color:var(--muted);text-align:center;">Enter password to continue</p>
+    <form id="login-form" style="width:100%;display:flex;flex-direction:column;gap:16px;" onsubmit="handleLogin(event)">
+      <input type="password" id="login-password" placeholder="Password" autofocus style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 16px;outline:none;width:100%;" />
+      <div id="login-error" style="font-size:13px;color:var(--danger);display:none;"></div>
+      <button type="submit" class="btn primary" style="width:100%;padding:12px;cursor:pointer;">Log In</button>
+    </form>
+  </div>
+</div>
+
+<div class="shell" id="app-shell" style="display:none;">
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="logo">
@@ -590,7 +606,9 @@
       <div class="field">
         <label>Postmark Server API Token</label>
         <div class="token-row">
-          <input type="password" id="api-token" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+          <select id="api-key-select" onchange="onApiKeyChange()">
+            <option value="">Loading keys...</option>
+          </select>
           <button class="validate-btn" onclick="validateToken()">Validate</button>
         </div>
         <div class="token-status" id="token-status"></div>
@@ -617,7 +635,7 @@
 
       <div class="info-box">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-        <div>Your <strong>From Email</strong> must have a verified Sender Signature in Postmark. Use the <strong>broadcast</strong> stream for marketing emails.</div>
+        <div>Add API keys to your <strong>.env</strong> file as <code style="background:rgba(232,255,74,0.12);padding:2px 6px;border-radius:4px;font-size:12px;">POSTMARK_KEY_YourLabel=token</code> and restart the server. Your <strong>From Email</strong> must have a verified Sender Signature in Postmark.</div>
       </div>
 
       <div class="btn-row">
@@ -805,12 +823,91 @@
 </div>
 
 <script>
+  let authToken = sessionStorage.getItem('authToken') || '';
+
+  // ── Login ──
+  async function handleLogin(e) {
+    e.preventDefault();
+    const pw = document.getElementById('login-password').value;
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Wrong password';
+        errEl.style.display = 'block';
+        return;
+      }
+      authToken = data.token;
+      sessionStorage.setItem('authToken', authToken);
+      showApp();
+    } catch {
+      errEl.textContent = 'Connection error';
+      errEl.style.display = 'block';
+    }
+  }
+
+  function showApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-shell').style.display = 'grid';
+    loadApiKeys();
+  }
+
+  // Helper to add auth header to all fetch calls
+  function authHeaders(extra = {}) {
+    return { 'Authorization': `Bearer ${authToken}`, ...extra };
+  }
+
+  // Check existing session on page load
+  (async function checkSession() {
+    if (!authToken) return;
+    try {
+      const res = await fetch('/api/keys', { headers: authHeaders() });
+      if (res.ok) { showApp(); return; }
+    } catch {}
+    sessionStorage.removeItem('authToken');
+    authToken = '';
+  })();
+
   let currentStep = 1;
   let completed = new Set();
 
   // ── Recipient data store (for CSV with firstName) ──
   // Array of { email, firstName } — populated by CSV upload or manually
   let recipientData = [];
+
+  // ── Load API keys from server ──
+  async function loadApiKeys() {
+    const select = document.getElementById('api-key-select');
+    try {
+      const keys = await fetch('/api/keys', { headers: authHeaders() }).then(r => r.json());
+      select.innerHTML = '';
+      if (keys.length === 0) {
+        select.innerHTML = '<option value="">No API keys found — add them to .env</option>';
+        return;
+      }
+      select.innerHTML = '<option value="">Select an API key...</option>' +
+        keys.map(k => `<option value="${k.id}">${k.name} (${k.maskedToken})</option>`).join('');
+    } catch (err) {
+      select.innerHTML = '<option value="">Failed to load keys</option>';
+    }
+  }
+
+  function onApiKeyChange() {
+    document.getElementById('token-status').textContent = '';
+  }
+
+  function getSelectedKeyId() {
+    return document.getElementById('api-key-select')?.value || '';
+  }
+
+  // Keys are loaded after login via showApp()
 
   // ── Navigation ──
   function goToStep(n) {
@@ -837,9 +934,9 @@
   // ── Validation ──
   function validateStep(step) {
     if (step === 1) {
-      const token = v('api-token');
+      const keyId = getSelectedKeyId();
       const email = v('from-email');
-      if (!token) { alert('Please enter your Postmark API token.'); return false; }
+      if (!keyId) { alert('Please select a Postmark API key.'); return false; }
       if (!email) { alert('Please enter a From email address.'); return false; }
     }
     if (step === 2) {
@@ -974,16 +1071,16 @@
 
   // ── Token Validation ──
   async function validateToken() {
-    const token = v('api-token');
-    if (!token) return;
+    const keyId = getSelectedKeyId();
+    if (!keyId) { alert('Please select an API key first.'); return; }
     const statusEl = document.getElementById('token-status');
     statusEl.className = 'token-status';
     statusEl.textContent = 'Checking...';
 
     const res = await fetch('/api/validate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiToken: token })
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ apiKeyId: keyId })
     }).then(r => r.json());
 
     if (res.valid) {
@@ -1074,7 +1171,7 @@
 
     try {
       const payload = {
-        apiToken: v('api-token'),
+        apiKeyId: getSelectedKeyId(),
         fromName: v('from-name'),
         fromEmail: v('from-email'),
         subject: v('subject'),
@@ -1091,7 +1188,7 @@
 
       const res = await fetch('/api/send-test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload)
       }).then(r => r.json());
 
@@ -1167,7 +1264,7 @@
 
     try {
       const payload = {
-        apiToken: v('api-token'),
+        apiKeyId: getSelectedKeyId(),
         fromName: v('from-name'),
         fromEmail: v('from-email'),
         subject: v('subject'),
@@ -1184,7 +1281,7 @@
 
       const res = await fetch('/api/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload)
       }).then(r => r.json());
 
