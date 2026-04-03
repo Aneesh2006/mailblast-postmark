@@ -105,6 +105,49 @@ function buildHtmlEmail(content) {
 </html>`;
 }
 
+// Build HTML email from raw HTML content (with optional banner image)
+function buildHtmlEmailFromRaw(content) {
+  const { imageUrl, htmlBody } = content;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+
+          ${imageUrl ? `
+          <tr>
+            <td style="padding:0;">
+              <img src="${imageUrl}" alt="Banner" width="600" style="width:100%;max-width:600px;height:auto;display:block;" />
+            </td>
+          </tr>` : ""}
+
+          <tr>
+            <td style="padding:40px 48px 32px;">
+              ${htmlBody}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 48px;border-top:1px solid #f3f4f6;">
+              <p style="margin:0;font-size:13px;color:#9ca3af;">You're receiving this because you signed up for our updates. <a href="#" style="color:#6b7280;">Unsubscribe</a></p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
 // Replace {{first_name}} placeholder in a string
 function personalize(text, firstName, fallback) {
   if (!text) return text;
@@ -117,7 +160,7 @@ function personalize(text, firstName, fallback) {
 
 // POST /api/send — main send endpoint
 app.post("/api/send", async (req, res) => {
-  const { apiKeyId, apiToken: rawToken, fromEmail, fromName, subject, emails, content, messageStream } = req.body;
+  const { apiKeyId, apiToken: rawToken, fromEmail, fromName, subject, emails, content, messageStream, bodyType } = req.body;
 
   const apiToken = (apiKeyId ? resolveApiToken(apiKeyId) : rawToken) || "";
   if (!apiToken || !fromEmail || !subject || !emails?.length || !content) {
@@ -149,25 +192,28 @@ app.post("/api/send", async (req, res) => {
 
   for (let i = 0; i < uniqueRecipients.length; i += BATCH_SIZE) {
     const batch = uniqueRecipients.slice(i, i + BATCH_SIZE).map((recipient) => {
-      // Personalize subject, headline, and body per recipient
       const pSubject = personalize(subject, recipient.firstName, recipient.email);
-      const pHeadline = personalize(content.headline, recipient.firstName, recipient.email);
-      const pBody = personalize(content.body, recipient.firstName, recipient.email);
 
-      const personalizedContent = {
-        ...content,
-        headline: pHeadline,
-        body: pBody,
-      };
+      let htmlEmail, textBody;
 
-      const htmlBody = buildHtmlEmail(personalizedContent);
-      const textBody = `${pHeadline}\n\n${pBody}${content.ctaText ? `\n\n${content.ctaText}: ${content.ctaUrl}` : ""}`;
+      if (bodyType === 'html') {
+        const pHtmlBody = personalize(content.htmlBody, recipient.firstName, recipient.email);
+        htmlEmail = buildHtmlEmailFromRaw({ imageUrl: content.imageUrl, htmlBody: pHtmlBody });
+        // Strip HTML tags for text fallback
+        textBody = pHtmlBody.replace(/<[^>]*>/g, '');
+      } else {
+        const pHeadline = personalize(content.headline, recipient.firstName, recipient.email);
+        const pBody = personalize(content.body, recipient.firstName, recipient.email);
+        const personalizedContent = { ...content, headline: pHeadline, body: pBody };
+        htmlEmail = buildHtmlEmail(personalizedContent);
+        textBody = `${pHeadline}\n\n${pBody}${content.ctaText ? `\n\n${content.ctaText}: ${content.ctaUrl}` : ""}`;
+      }
 
       return {
         From: from,
         To: recipient.email,
         Subject: pSubject,
-        HtmlBody: htmlBody,
+        HtmlBody: htmlEmail,
         TextBody: textBody,
         MessageStream: stream,
       };
@@ -208,7 +254,7 @@ app.post("/api/send", async (req, res) => {
 
 // POST /api/send-test — send a single test email
 app.post("/api/send-test", async (req, res) => {
-  const { apiKeyId, apiToken: rawToken, fromEmail, fromName, subject, testTo, content, messageStream } = req.body;
+  const { apiKeyId, apiToken: rawToken, fromEmail, fromName, subject, testTo, content, messageStream, bodyType } = req.body;
 
   const apiToken = (apiKeyId ? resolveApiToken(apiKeyId) : rawToken) || "";
   if (!apiToken || !fromEmail || !subject || !testTo || !content) {
@@ -218,19 +264,21 @@ app.post("/api/send-test", async (req, res) => {
   const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
   const stream = messageStream || "broadcast";
 
-  // Personalize with sample name "Alex" for test emails
   const pSubject = personalize(`[TEST] ${subject}`, "Alex", testTo);
-  const pHeadline = personalize(content.headline, "Alex", testTo);
-  const pBody = personalize(content.body, "Alex", testTo);
 
-  const personalizedContent = {
-    ...content,
-    headline: pHeadline,
-    body: pBody,
-  };
+  let htmlBody, textBody;
 
-  const htmlBody = buildHtmlEmail(personalizedContent);
-  const textBody = `${pHeadline}\n\n${pBody}${content.ctaText ? `\n\n${content.ctaText}: ${content.ctaUrl}` : ""}`;
+  if (bodyType === 'html') {
+    const pHtmlBody = personalize(content.htmlBody, "Alex", testTo);
+    htmlBody = buildHtmlEmailFromRaw({ imageUrl: content.imageUrl, htmlBody: pHtmlBody });
+    textBody = pHtmlBody.replace(/<[^>]*>/g, '');
+  } else {
+    const pHeadline = personalize(content.headline, "Alex", testTo);
+    const pBody = personalize(content.body, "Alex", testTo);
+    const personalizedContent = { ...content, headline: pHeadline, body: pBody };
+    htmlBody = buildHtmlEmail(personalizedContent);
+    textBody = `${pHeadline}\n\n${pBody}${content.ctaText ? `\n\n${content.ctaText}: ${content.ctaUrl}` : ""}`;
+  }
 
   try {
     const response = await axios.post(

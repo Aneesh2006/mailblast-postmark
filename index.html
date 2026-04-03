@@ -198,6 +198,42 @@
     select option { background: var(--surface2); }
     textarea { resize: vertical; min-height: 120px; }
 
+    /* Body type toggle */
+    .body-toggle {
+      display: flex;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 2px;
+      width: fit-content;
+    }
+    .body-toggle-btn {
+      padding: 6px 16px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .body-toggle-btn.active {
+      background: var(--accent);
+      color: #111;
+    }
+    .body-toggle-btn:not(.active):hover {
+      color: var(--text);
+    }
+
+    #html-body-fields { display: none; }
+    #html-body-fields.show { display: block; }
+    #text-body-fields.hidden { display: none; }
+
     .token-row {
       display: flex;
       gap: 8px;
@@ -691,37 +727,69 @@
       </div>
 
       <div class="field">
+        <label style="margin-bottom:6px;">Body Type</label>
+        <div class="body-toggle">
+          <button type="button" class="body-toggle-btn active" id="toggle-text" onclick="setBodyType('text')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+            Text
+          </button>
+          <button type="button" class="body-toggle-btn" id="toggle-html" onclick="setBodyType('html')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            HTML
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
         <label>Banner Image URL <span style="color:var(--muted);font-weight:400">(optional)</span></label>
         <input type="url" id="image-url" placeholder="https://yoursite.com/banner.jpg" oninput="updatePreview()" />
         <img id="img-preview" class="img-preview" />
       </div>
 
-      <div class="field">
-        <label>Headline</label>
-        <input type="text" id="headline" placeholder="Big news from us!" oninput="updatePreview()" />
-      </div>
+      <!-- Text body fields -->
+      <div id="text-body-fields">
+        <div class="field">
+          <label>Headline</label>
+          <input type="text" id="headline" placeholder="Big news from us!" oninput="updatePreview()" />
+        </div>
 
-      <div class="field">
-        <label>Body Message</label>
-        <textarea id="body-text" placeholder="Write your marketing message here..." oninput="updatePreview()"></textarea>
-      </div>
+        <div class="field">
+          <label>Body Message</label>
+          <textarea id="body-text" placeholder="Write your marketing message here..." oninput="updatePreview()"></textarea>
+        </div>
 
-      <!-- Personalization hint -->
-      <div class="personalization-hint">
-        <div style="display:flex; gap:8px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-          <div>Use <code>{{first_name}}</code> anywhere in your subject, headline, or body to personalize per recipient.<br/>Falls back to the full email address if no name is available.</div>
+        <!-- Personalization hint -->
+        <div class="personalization-hint">
+          <div style="display:flex; gap:8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <div>Use <code>{{first_name}}</code> anywhere in your subject, headline, or body to personalize per recipient.<br/>Falls back to the full email address if no name is available.</div>
+          </div>
+        </div>
+
+        <div class="cta-row">
+          <div class="field">
+            <label>CTA Button Text <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+            <input type="text" id="cta-text" placeholder="Shop Now" oninput="updatePreview()" />
+          </div>
+          <div class="field">
+            <label>CTA Button URL</label>
+            <input type="url" id="cta-url" placeholder="https://yoursite.com" oninput="updatePreview()" />
+          </div>
         </div>
       </div>
 
-      <div class="cta-row">
+      <!-- HTML body fields -->
+      <div id="html-body-fields">
         <div class="field">
-          <label>CTA Button Text <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-          <input type="text" id="cta-text" placeholder="Shop Now" oninput="updatePreview()" />
+          <label>HTML Body</label>
+          <textarea id="html-body" placeholder="<h1>Hello {{first_name}}</h1>&#10;<p>Paste your HTML email content here...</p>" oninput="updatePreview()" style="min-height:200px;font-family:'DM Mono',monospace;font-size:13px;"></textarea>
         </div>
-        <div class="field">
-          <label>CTA Button URL</label>
-          <input type="url" id="cta-url" placeholder="https://yoursite.com" oninput="updatePreview()" />
+
+        <div class="personalization-hint">
+          <div style="display:flex; gap:8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <div>Use <code>{{first_name}}</code> in your HTML to personalize per recipient. The banner image (if set) will be prepended above your HTML content.</div>
+          </div>
         </div>
       </div>
 
@@ -895,6 +963,16 @@
 
   let currentStep = 1;
   let completed = new Set();
+  let currentBodyType = 'text'; // 'text' or 'html'
+
+  function setBodyType(type) {
+    currentBodyType = type;
+    document.getElementById('toggle-text').classList.toggle('active', type === 'text');
+    document.getElementById('toggle-html').classList.toggle('active', type === 'html');
+    document.getElementById('text-body-fields').classList.toggle('hidden', type === 'html');
+    document.getElementById('html-body-fields').classList.toggle('show', type === 'html');
+    updatePreview();
+  }
 
   // ── Recipient data store (for CSV with firstName) ──
   // Array of { email, firstName } — populated by CSV upload or manually
@@ -963,7 +1041,8 @@
     }
     if (step === 3) {
       if (!v('subject')) { alert('Please enter an email subject.'); return false; }
-      if (!v('headline') && !v('body-text')) { alert('Please add a headline or body text.'); return false; }
+      if (currentBodyType === 'text' && !v('headline') && !v('body-text')) { alert('Please add a headline or body text.'); return false; }
+      if (currentBodyType === 'html' && !v('html-body')) { alert('Please add your HTML body content.'); return false; }
     }
     return true;
   }
@@ -1113,14 +1192,6 @@
   // ── Live Preview (with {{first_name}} replacement) ──
   function updatePreview() {
     const imageUrl = v('image-url');
-    let headline = v('headline');
-    let bodyText = v('body-text');
-    const ctaText = v('cta-text');
-    const ctaUrl = v('cta-url');
-
-    // Replace {{first_name}} with sample "Alex" in preview
-    const previewHeadline = headline ? headline.replace(/\{\{first_name\}\}/g, 'Alex') : '';
-    const previewBody = bodyText ? bodyText.replace(/\{\{first_name\}\}/g, 'Alex') : '';
 
     // Sidebar preview img
     const sideImg = document.getElementById('img-preview');
@@ -1136,14 +1207,31 @@
     if (imageUrl) { pImg.src = imageUrl; pImg.classList.add('show'); }
     else { pImg.classList.remove('show'); }
 
-    document.getElementById('preview-headline').textContent = previewHeadline || 'Your headline will appear here';
-    document.getElementById('preview-text').textContent = previewBody || 'Your body text will appear here...';
-    document.getElementById('preview-text').style.color = previewBody ? 'var(--text)' : 'var(--muted)';
+    if (currentBodyType === 'html') {
+      const htmlBody = v('html-body');
+      const previewHtml = htmlBody ? htmlBody.replace(/\{\{first_name\}\}/g, 'Alex') : '';
+      document.getElementById('preview-headline').textContent = '';
+      document.getElementById('preview-text').innerHTML = previewHtml || '<span style="color:var(--muted);">Your HTML content will appear here...</span>';
+      document.getElementById('preview-text').style.color = 'var(--text)';
+      document.getElementById('preview-cta-wrap').innerHTML = '';
+    } else {
+      let headline = v('headline');
+      let bodyText = v('body-text');
+      const ctaText = v('cta-text');
+      const ctaUrl = v('cta-url');
 
-    const ctaWrap = document.getElementById('preview-cta-wrap');
-    ctaWrap.innerHTML = ctaText
-      ? `<a href="${ctaUrl || '#'}" class="preview-cta" target="_blank">${ctaText}</a>`
-      : '';
+      const previewHeadline = headline ? headline.replace(/\{\{first_name\}\}/g, 'Alex') : '';
+      const previewBody = bodyText ? bodyText.replace(/\{\{first_name\}\}/g, 'Alex') : '';
+
+      document.getElementById('preview-headline').textContent = previewHeadline || 'Your headline will appear here';
+      document.getElementById('preview-text').textContent = previewBody || 'Your body text will appear here...';
+      document.getElementById('preview-text').style.color = previewBody ? 'var(--text)' : 'var(--muted)';
+
+      const ctaWrap = document.getElementById('preview-cta-wrap');
+      ctaWrap.innerHTML = ctaText
+        ? `<a href="${ctaUrl || '#'}" class="preview-cta" target="_blank">${ctaText}</a>`
+        : '';
+    }
   }
 
   // ── Send Test Email (Feature 2) ──
@@ -1195,10 +1283,12 @@
         subject: v('subject'),
         messageStream: v('message-stream'),
         testTo,
+        bodyType: currentBodyType,
         content: {
           imageUrl: v('image-url'),
           headline: v('headline'),
           body: v('body-text'),
+          htmlBody: v('html-body'),
           ctaText: v('cta-text'),
           ctaUrl: v('cta-url'),
         }
@@ -1237,10 +1327,13 @@
       ['From',       `${v('from-name')} <${v('from-email')}>`],
       ['Stream',     v('message-stream')],
       ['Subject',    v('subject')],
+      ['Body Type',  currentBodyType === 'html' ? 'HTML' : 'Text'],
       ['Recipients', recipientInfo],
-      ['Headline',   v('headline')],
-      ['CTA',        v('cta-text') ? `${v('cta-text')} → ${v('cta-url')}` : '(none)'],
     ];
+    if (currentBodyType === 'text') {
+      rows.push(['Headline', v('headline')]);
+      rows.push(['CTA', v('cta-text') ? `${v('cta-text')} → ${v('cta-url')}` : '(none)']);
+    }
 
     document.getElementById('review-body').innerHTML = rows.map(([k, val]) => `
       <div style="display:flex;gap:24px;align-items:baseline;padding-bottom:12px;border-bottom:1px solid var(--border);font-size:14px;">
@@ -1288,10 +1381,12 @@
         subject: v('subject'),
         messageStream: v('message-stream'),
         emails: recipients,  // [{email, firstName}]
+        bodyType: currentBodyType,
         content: {
           imageUrl: v('image-url'),
           headline: v('headline'),
           body: v('body-text'),
+          htmlBody: v('html-body'),
           ctaText: v('cta-text'),
           ctaUrl: v('cta-url'),
         }
